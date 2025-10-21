@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartLearn Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>SmartLearn Assistant</h1>
+    <p class="subtitle">Ask me anything — quiz, roadmap, or explanation</p>
+
+    <!-- Main input form -->
+    <form id="queryForm">
+      <input type="text" id="userInput" placeholder="Type your question or topic..." required>
+      <button type="submit">Submit</button>
+    </form>
+
+    <!-- Quiz submit button (hidden by default) -->
+    <button id="submitQuiz" style="display:none;">Submit Quiz</button>
+
+    <!-- Result display box -->
+    <div id="result" class="result-box"></div>
+  </div>
+
+  <script>
+    document.getElementById("queryForm").onsubmit = async function(e) {
+      e.preventDefault();
+      const text = document.getElementById("userInput").value;
+      const res = await fetch("/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text})
+      });
+      const data = await res.json();
+
+      let output = `<strong>SmartLearn understood your intent:</strong><br>${data.intent.charAt(0).toUpperCase() + data.intent.slice(1)}`;
+
+      // Quiz rendering
+      if (data.intent === "quiz" && data.quiz) {
+        output += `<br><br><strong>Topic:</strong> ${data.topic}<br><strong>Here's your quiz:</strong><ul>`;
+        data.quiz.forEach((q, i) => {
+          output += `<li><strong>Q${i + 1}:</strong> ${q.question}<br>`;
+          q.options.forEach(opt => {
+            output += `<input type="radio" name="q${i}" value="${opt}"> ${opt}<br>`;
+          });
+          output += `</li><br>`;
+        });
+        output += `</ul>`;
+        document.getElementById("submitQuiz").style.display = "inline-block";
+        window.currentQuiz = data.quiz;
+        window.currentQuizTopic = data.topic;
+      }
+
+      // Roadmap rendering
+      if (data.intent === "roadmap" && data.roadmap) {
+        output += `<br><br><strong>Your learning roadmap:</strong><ol>`;
+        data.roadmap.forEach(step => {
+          output += `<li>${step}</li>`;
+        });
+        output += `</ol>`;
+      }
+
+      document.getElementById("result").innerHTML = output;
+    };
+
+    // Quiz scoring and progress logging
+    document.getElementById("submitQuiz").onclick = function() {
+      let score = 0;
+      window.currentQuiz.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && selected.value === q.answer) score++;
+      });
+
+      document.getElementById("result").innerHTML += `<br><strong>Your score:</strong> ${score}/${window.currentQuiz.length}`;
+      document.getElementById("submitQuiz").style.display = "none";
+
+      // Optional: log progress to backend
+      fetch("/log_progress", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          user: "Aditya",
+          topic: window.currentQuizTopic || "unknown",
+          score: score
+        })
+      });
+    };
+  </script>
+</body>
+</html>
