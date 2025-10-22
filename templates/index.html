@@ -10,30 +10,36 @@
     <h1>SmartLearn Assistant</h1>
     <p class="subtitle">Ask me anything — quiz, roadmap, or explanation</p>
 
-    <!-- Main input form -->
-    <form id="queryForm">
-      <input type="text" id="userInput" placeholder="Type your question or topic..." required>
-      <button type="submit">Submit</button>
-    </form>
+<!-- Result display box (moved up) -->
+<div id="result" class="result-box"></div>
 
     <!-- Quiz submit button (hidden by default) -->
     <button id="submitQuiz" style="display:none;">Submit Quiz</button>
+    
+<!-- Main input form -->
+<form id="queryForm">
+  <input type="text" id="userInput" placeholder="Type your topic or question..." required>
+  <input type="number" id="questionCount" placeholder="Number of questions" min="1" max="10">
+  <button type="submit">Submit</button>
+</form>
 
-    <!-- Result display box -->
-    <div id="result" class="result-box"></div>
+    <!-- Dashboard link -->
+    <p><a href="/dashboard">📊 View Progress Dashboard</a></p>
   </div>
 
   <script>
     document.getElementById("queryForm").onsubmit = async function(e) {
       e.preventDefault();
       const text = document.getElementById("userInput").value;
+      const count = parseInt(document.getElementById("questionCount").value) || 2;
+
       const res = await fetch("/predict", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({text})
+        body: JSON.stringify({text, count})
       });
-      const data = await res.json();
 
+      const data = await res.json();
       let output = `<strong>SmartLearn understood your intent:</strong><br>${data.intent.charAt(0).toUpperCase() + data.intent.slice(1)}`;
 
       // Quiz rendering
@@ -75,7 +81,6 @@
       document.getElementById("result").innerHTML += `<br><strong>Your score:</strong> ${score}/${window.currentQuiz.length}`;
       document.getElementById("submitQuiz").style.display = "none";
 
-      // Optional: log progress to backend
       fetch("/log_progress", {
         method: "POST",
         headers: {"Content-Type": "application/json"},

@@ -1,0 +1,4 @@
+Step-1 : Install all the api given in "requirements.txt" by typing "pip Install -r requirements.txt" in the command prompt
+Step-2 : Install scikit-learn by typing "pip install scikit-learn" in the command prompt
+Step-3 : Run the "app.py" file by typing "python app.py" in the terminal
+Step-4 : Open the "http://127.0.0.1:5000/" link in your browser to use the application.

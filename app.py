@@ -1,5 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from utils.predict import predict_intent
+import sqlite3
+from datetime import datetime
+import random
 
 app = Flask(__name__)
 
@@ -9,7 +12,10 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    user_input = request.json.get("text", "")
+    data = request.json
+    user_input = data.get("text", "")
+    count = int(data.get("count", 2))  # default to 2 if not provided
+
     intent = predict_intent(user_input)
 
     if intent == "quiz":
@@ -19,7 +25,7 @@ def predict():
         elif "science" in user_input.lower():
             topic = "science"
         elif "python" in user_input.lower():
-            topic = "python"
+            topic = "python"    
         else:
             topic = "general"
 
@@ -71,11 +77,16 @@ def predict():
             ]
         }
 
+        pool = quiz_bank.get(topic, quiz_bank["general"])
+        count = min(count, len(pool))  # avoid overflow
+        selected_questions = random.sample(pool, count)
+
         return jsonify({
             "intent": intent,
             "topic": topic,
-            "quiz": quiz_bank.get(topic, quiz_bank["general"])
+            "quiz": selected_questions
         })
+
 
     elif intent == "roadmap":
         return jsonify({    
@@ -91,12 +102,36 @@ def predict():
     else:
         return jsonify({"intent": intent})
 
+
 @app.route("/log_progress", methods=["POST"])
 def log_progress():
-    data = request.json  # e.g., {"user": "Aditya", "score": 2, "topic": "math"}
-    with open("progress_log.txt", "a") as f:
-        f.write(f"{data.get('user','unknown')} | {data.get('topic','unknown')} | Score: {data.get('score',0)}\n")
+    data = request.json
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect("progress.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO progress (user, topic, score, timestamp)
+        VALUES (?, ?, ?, ?)
+    """, (data["user"], data["topic"], data["score"], timestamp))
+    conn.commit()
+    conn.close()
     return jsonify({"status": "logged"})
+
+@app.route("/dashboard")
+def dashboard():
+    print("Accessing dashboard")
+    conn = sqlite3.connect("progress.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT topic, COUNT(*) as attempts, AVG(score) as avg_score
+        FROM progress
+        GROUP BY topic
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    data = [{"topic": r[0], "attempts": r[1], "avg_score": round(r[2], 2)} for r in rows]
+    return render_template("dashboard.html", data=data)
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,1 +1,3 @@
 Aditya | math | Score: 13
+Aditya | general | Score: 0
+Aditya | general | Score: 2
