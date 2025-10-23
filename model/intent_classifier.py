@@ -12,7 +12,8 @@ training_data = [
     ("what should I learn next", "roadmap"),
     ("start a quiz", "quiz"),
     ("help me understand this", "explanation"),
-    ("suggest a learning path", "roadmap")
+    ("suggest a learning path", "roadmap"),
+    ("give me a advance math quiz", "advancem")
 ]
 
 texts, labels = zip(*training_data)
