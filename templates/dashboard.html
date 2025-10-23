@@ -2,91 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SmartLearn Progress Dashboard</title>
+  <title>SmartLearn Assistant</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-    .dashboard-container {
-      max-width: 700px;
-      margin: 60px auto;
-      padding: 40px;
-      background: linear-gradient(to right, #f4faff, #e0ecff);
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-      animation: fadeIn 0.8s ease;
-    }
-
-    h1 {
-      color: #005fa3;
-      font-size: 28px;
-      margin-bottom: 20px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-
-    th, td {
-      padding: 12px;
-      border-bottom: 1px solid #ccc;
-      text-align: center;
-    }
-
-    th {
-      background-color: #0078d4;
-      color: white;
-    }
-
-    tr:hover {
-      background-color: #f0f8ff;
-      transition: background-color 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .back-link {
-      margin-top: 30px;
-      display: inline-block;
-      color: #0078d4;
-      text-decoration: none;
-      font-weight: bold;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
-  </style>
 </head>
 <body>
-  <div class="dashboard-container">
-    <h1>📊 Progress Dashboard</h1>
-    <table>
-      <tr>
-        <th>Topic</th>
-        <th>Total Attempts</th>
-        <th>Average Score</th>
-      </tr>
-      {% for row in data %}
-      <tr>
-        <td>{{ row.topic }}</td>
-        <td>{{ row.attempts }}</td>
-        <td>{{ row.avg_score }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <a href="/" class="back-link">⬅ Back to SmartLearn Assistant</a>
-    <h2>📬 Support line</h2>
-<p>If you have questions or need help, feel free to reach out:</p>
+  <div class="container">
+    <h1>NOVA -7</h1>
+    <p class="subtitle">Ask me anything — quiz, roadmap, or explanation</p>
+    <div id="result" class="result-box"></div>
+    <button id="submitQuiz" style="display:none;">Submit Quiz</button>
+    <form id="queryForm">
+      <input type="text" id="userInput" placeholder="Type your topic or question..." required>
+      <input type="number" id="questionCount" placeholder="Number of questions" min="1" max="10">
+      <button type="submit">Submit</button>
+    </form>
+    <p><a href="/dashboard" class="dashboard-button">📊 View Progress Dashboard</a></p>
+  </div>
 
-  <div class="contact-box">
-  <p><strong>Name:</strong> Aditya Mishra</p>
-  <p><strong>Email:</strong> <a href="mailto:routrayabhishek23@gmail.com">routrayabhishek23@gmail.com</a></p>
-  <p><strong>Phone:</strong> <a href="tel:+91 99999 99999">+91 99999 99999</a></p>
-</div>
-</div>
+  <script>
+    document.getElementById("queryForm").onsubmit = async function(e) {
+      e.preventDefault();
+      const text = document.getElementById("userInput").value;
+      const count = parseInt(document.getElementById("questionCount").value) || 2;
+
+      const res = await fetch("/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text, count})
+      });
+
+      const data = await res.json();
+      let output = `<strong>SmartLearn understood your intent:</strong><br>${data.intent.charAt(0).toUpperCase() + data.intent.slice(1)}`;
+      if (data.intent === "quiz" && data.quiz) {
+        output += `<br><br><strong>Topic:</strong> ${data.topic}<br><strong>Here's your quiz:</strong><ul>`;
+        data.quiz.forEach((q, i) => {
+          output += `<li><strong>Q${i + 1}:</strong> ${q.question}<br>`;
+          q.options.forEach(opt => {
+            output += `<input type="radio" name="q${i}" value="${opt}"> ${opt}<br>`;
+          });
+          output += `</li><br>`;
+        });
+        output += `</ul>`;
+        document.getElementById("submitQuiz").style.display = "inline-block";
+        window.currentQuiz = data.quiz;
+        window.currentQuizTopic = data.topic;
+      }
+
+      if (data.intent === "roadmap" && data.roadmap) {
+        output += `<br><br><strong>Your learning roadmap:</strong><ol>`;
+        data.roadmap.forEach(step => {
+          output += `<li>${step}</li>`;
+        });
+        output += `</ol>`;
+      }
+
+      document.getElementById("result").innerHTML = output;
+    };
+    document.getElementById("submitQuiz").onclick = function() {
+      let score = 0;
+      window.currentQuiz.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && selected.value === q.answer) score++;
+      });
+
+      document.getElementById("result").innerHTML += `<br><strong>Your score:</strong> ${score}/${window.currentQuiz.length}`;
+      document.getElementById("submitQuiz").style.display = "none";
+
+      fetch("/log_progress", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          user: "Aditya",
+          topic: window.currentQuizTopic || "unknown",
+          score: score
+        })
+      });
+    };
+  </script>
 </body>
 </html>
